@@ -78,7 +78,7 @@ impl<T: Send> Ent<T> {
         else { Err(EntErr::Invalid) }
     }
 
-    pub fn each<W, F: Fn(&T) -> W> (&self, f: F) {
+    pub fn each<W, F: FnMut(&T) -> W> (&self, mut f: F) {
         for e in self.ents.iter() {
             let rl = e.lock().unwrap();
             if rl.0 > 0 {
@@ -90,7 +90,7 @@ impl<T: Send> Ent<T> {
         }
     }
 
-    pub fn each_mut<W, F: Fn(&mut T) -> W> (&self, f: F) {
+    pub fn each_mut<W, F: FnMut(&mut T) -> W> (&self, mut f: F) {
         for e in self.ents.iter() {
             let mut wl = e.lock().unwrap();
             if wl.0 > 0 {
@@ -113,6 +113,7 @@ impl<T: Send> Ent<T> {
 mod tests {
     extern crate test;
     use Ent;
+    use EntErr;
 
     use std::collections::HashMap;
     use std::sync::mpsc::{channel};
@@ -128,9 +129,40 @@ mod tests {
     fn test_cubby() {
         let mut e: Ent<u8> = Ent::new(10);
         let rid = e.add(2).unwrap();
-        e.remove(rid);
-        assert_eq!(e.with(rid,|i| *i),Err("ent removed"));
+        assert_eq!(e.with(rid,|i| *i).unwrap(),2);
     }
+
+    #[test]
+    #[should_fail]
+    fn test_cubby_remove() {
+        let mut e: Ent<u8> = Ent::new(10);
+        let rid = e.add(2).unwrap();
+        e.remove(rid);
+
+        let r = e.with(rid,|i| *i).unwrap();
+        assert_eq!(r,2);
+    }
+
+    #[test]
+    fn test_cubby_mut() {
+        let mut e: Ent<u8> = Ent::new(10);
+        let rid = e.add(2).unwrap();
+        e.with_mut(rid,|i| *i+=1);
+        let r = e.with_mut(rid,|i| *i).unwrap();
+        assert_eq!(r,3);
+    }
+
+    #[test]
+    fn test_cubby_each() {
+        let mut e: Ent<u8> = Ent::new(10);
+        e.add(2);
+        e.add(3);
+        let mut v = vec!();
+        e.each(|i| v.push(*i));
+        assert_eq!(v.len(), 2);
+    }
+
+//
 
     #[bench]
     fn bench_cubby(b: &mut test::Bencher) {
