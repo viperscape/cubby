@@ -1,10 +1,17 @@
 use std::rand;
 use std::sync::{Arc,Mutex};
 
-//#[derive(Debug)]
+
 pub struct Ent<T: Send> {
     ents: Box<[Mutex<(u64,Option<T>)>]>,
     dead: Mutex<Vec<usize>>,
+}
+
+#[derive(Debug)]
+pub enum EntErr {
+    NoData,
+    Invalid,
+    Maxed,
 }
 
 pub type Eid = (usize,u64);
@@ -25,11 +32,10 @@ impl<T: Send> Ent<T> {
         let e = Ent { ents: v.into_boxed_slice(),
                       dead: Mutex::new(d), };
 
-        //Arc::new(e)
         e
     }
 
-    pub fn add (&self, i: T) -> Result<Eid,String> {
+    pub fn add (&self, i: T) -> Result<Eid,EntErr> {
         let d = self.dead.lock().unwrap().pop();
         if let Some(idx) = d {
             let rid = rand::random::<u64>();
@@ -37,7 +43,7 @@ impl<T: Send> Ent<T> {
             *wl = (rid,Some(i));
             Ok((idx,rid))
         }
-        else { Err("no indices available".to_string()) }
+        else { Err(EntErr::Maxed) }
     }
 
     pub fn remove (&self, e:Eid) -> bool {
@@ -50,33 +56,57 @@ impl<T: Send> Ent<T> {
         else { false }
     }
 
-    pub fn with<W, F: Fn(&T) -> W> (&self, e: Eid, f: F) -> Result<W,&str> {
-   // pub fn with<F> (&self, e: Eid, f: F) where F: Fn(&T) {
+    pub fn with<W, F: Fn(&T) -> W> (&self, e: Eid, f: F) -> Result<W,EntErr> {
         let rl = self.ents[e.0].lock().unwrap();
         if rl.0 == e.1 {
             if let Some(ref r) = rl.1 {
                 Ok(f(r))
             }
-            else { Err("No data initialized") }
+            else { Err(EntErr::NoData) }
         }
-        else { Err("ent removed") }
+        else { Err(EntErr::Invalid) }
     }
 
-    pub fn with_mut<W, F: Fn(&mut T) -> W> (&self, e: Eid, f: F) -> Result<W,&str> {
+    pub fn with_mut<W, F: Fn(&mut T) -> W> (&self, e: Eid, f: F) -> Result<W,EntErr> {
         let mut wl = self.ents[e.0].lock().unwrap();
         if wl.0 == e.1 {
             if let &mut Some(ref mut w) = &mut wl.1 {
                 Ok(f(w))
             }
-            else { Err("No data initialized") }
+            else { Err(EntErr::NoData) }
         }
-        else { Err("ent removed") }
+        else { Err(EntErr::Invalid) }
     }
+
+    pub fn each<W, F: Fn(&T) -> W> (&self, f: F) {
+        for e in self.ents.iter() {
+            let rl = e.lock().unwrap();
+            if rl.0 > 0 {
+                if let Some(ref r) = rl.1 {
+                    f(r);
+                }
+                else { break; }
+            }
+        }
+    }
+
+    pub fn each_mut<W, F: Fn(&mut T) -> W> (&self, f: F) {
+        for e in self.ents.iter() {
+            let mut wl = e.lock().unwrap();
+            if wl.0 > 0 {
+                if let &mut Some(ref mut w) = &mut wl.1 {
+                    f(w);
+                }
+                else { break; }
+            }
+        }
+    }
+
+    //pub fn iter (&self) -> &[Mutex<(u64,Option<T>)>] {
+    //    self.ents.as_slice()
+    //}
 }
 
-// todo: !!
-//impl Iter for Ent {
-//}
 
 
 #[cfg(test)]

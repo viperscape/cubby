@@ -3,3 +3,4 @@
 #*
 .#*
 /Cargo.lock
+/src/main.rs
