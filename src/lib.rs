@@ -114,6 +114,24 @@ impl<T: Send> Ent<T> {
         }
     }
 
+    pub fn find<F: FnMut(&T) -> Option<EntErr>> (&self, mut f: F) -> Option<Eid> {
+        for (i,e) in self.ents.iter().enumerate() {
+            let rl = e.lock().unwrap();
+            if rl.0 > 0 {
+                if let Some(ref r) = rl.1 {
+                    if let Some(r) = f(r) {
+                        match r {
+                            EntErr::Break => {return Some((i,rl.0));}, //escape hatch
+                            _ => (),
+                        }
+                    }
+                }
+                else { break; } //quit at first None
+            }
+        }
+        None
+    }
+
     //pub fn iter (&self) -> &[Mutex<(u64,Option<T>)>] {
     //    self.ents.as_slice()
     //}
@@ -172,6 +190,16 @@ mod tests {
         let mut v = vec!();
         e.each(|i| {v.push(*i); None});
         assert_eq!(v.len(), 2);
+    }
+
+    #[test]
+    fn test_cubby_find() {
+        let mut e: Ent<u8> = Ent::new(10);
+        e.add(2);
+        e.add(3);
+        let r = e.find(|i| { if *i == 3 { Some(EntErr::Break) }
+                             else {None} });
+        assert_eq!(r.is_some(),true);
     }
 
 //
