@@ -12,6 +12,7 @@ pub enum EntErr {
     NoData,
     Invalid,
     Maxed,
+    Break, //break from an 'each' call
 }
 
 pub type Eid = (usize,u64);
@@ -79,24 +80,34 @@ impl<T: Send> Ent<T> {
         else { Err(EntErr::Invalid) }
     }
 
-    pub fn each<W, F: FnMut(&T) -> W> (&self, mut f: F) {
+    pub fn each<F: FnMut(&T) -> Option<EntErr>> (&self, mut f: F) {
         for e in self.ents.iter() {
             let rl = e.lock().unwrap();
             if rl.0 > 0 {
                 if let Some(ref r) = rl.1 {
-                    f(r);
+                    if let Some(r) = f(r) {
+                        match r {
+                            EntErr::Break => {break;}, //escape hatch
+                            _ => (),
+                        }
+                    }
                 }
-                else { break; }
+                else { break; } //quit at first None
             }
         }
     }
 
-    pub fn each_mut<W, F: FnMut(&mut T) -> W> (&self, mut f: F) {
+    pub fn each_mut<F: FnMut(&mut T) -> Option<EntErr>> (&self, mut f: F) {
         for e in self.ents.iter() {
             let mut wl = e.lock().unwrap();
             if wl.0 > 0 {
                 if let &mut Some(ref mut w) = &mut wl.1 {
-                    f(w);
+                    if let Some(r) = f(w) {
+                        match r {
+                            EntErr::Break => {break;}, //escape hatch
+                            _ => (),
+                        }
+                    }
                 }
                 else { break; }
             }
@@ -159,7 +170,7 @@ mod tests {
         e.add(2);
         e.add(3);
         let mut v = vec!();
-        e.each(|i| v.push(*i));
+        e.each(|i| {v.push(*i); None});
         assert_eq!(v.len(), 2);
     }
 
