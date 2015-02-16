@@ -67,7 +67,8 @@ impl<T: Send> Ent<T> {
         else { Err(EntErr::Invalid) }
     }
 
-    pub fn with_mut<W, F: FnMut(&mut T) -> W> (&self, e: Eid, mut f: F) -> Result<W,EntErr> {
+    // note: this is fnonce to solve a capture issue I had, this may not be the best option, perhaps a second method for fnonce specific captures? (with_cap)?
+    pub fn with_mut<W, F: FnOnce(&mut T) -> W> (&self, e: Eid, mut f: F) -> Result<W,EntErr> {
         let mut wl = self.ents[e.0].lock().unwrap();
         if wl.0 == e.1 {
             if let &mut Some(ref mut w) = &mut wl.1 {
