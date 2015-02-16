@@ -56,7 +56,7 @@ impl<T: Send> Ent<T> {
         else { false }
     }
 
-    pub fn with<W, F: Fn(&T) -> W> (&self, e: Eid, f: F) -> Result<W,EntErr> {
+    pub fn with<W, F: FnMut(&T) -> W> (&self, e: Eid, mut f: F) -> Result<W,EntErr> {
         let rl = self.ents[e.0].lock().unwrap();
         if rl.0 == e.1 {
             if let Some(ref r) = rl.1 {
@@ -67,7 +67,7 @@ impl<T: Send> Ent<T> {
         else { Err(EntErr::Invalid) }
     }
 
-    pub fn with_mut<W, F: Fn(&mut T) -> W> (&self, e: Eid, f: F) -> Result<W,EntErr> {
+    pub fn with_mut<W, F: FnMut(&mut T) -> W> (&self, e: Eid, mut f: F) -> Result<W,EntErr> {
         let mut wl = self.ents[e.0].lock().unwrap();
         if wl.0 == e.1 {
             if let &mut Some(ref mut w) = &mut wl.1 {
