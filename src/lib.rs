@@ -1,5 +1,9 @@
+#![feature(rand)]
+#![feature(core)]
+#![feature(collections)]
+
 use std::rand;
-use std::sync::{Arc,Mutex};
+use std::sync::{Mutex};
 
 
 pub struct Ent<T: Send> {
@@ -17,7 +21,8 @@ pub enum EntErr {
 
 pub type Eid = (usize,u64);
 
-impl<T: Send> Ent<T> {
+// todo: consider explicit lifetime other than static
+impl<T: Send + 'static> Ent<T> {
     pub fn new (s:usize) -> Ent<T> {
         let mut v = vec!();
         let mut d = vec!();
@@ -80,6 +85,7 @@ impl<T: Send> Ent<T> {
         else { Err(EntErr::Invalid) }
     }
 
+    // todo: consider bool, like a 'while' filter
     pub fn each<F: FnMut(&T) -> Option<EntErr>> (&self, mut f: F) {
         for e in self.ents.iter() {
             let rl = e.lock().unwrap();
@@ -114,17 +120,26 @@ impl<T: Send> Ent<T> {
         }
     }
 
-    pub fn find<F: FnMut(&T) -> Option<EntErr>> (&self, mut f: F) -> Option<Eid> {
+    pub fn find<F: FnMut(&T) -> bool> (&self, mut f: F) -> Vec<Eid> {
+        let mut v = vec!();
         for (i,e) in self.ents.iter().enumerate() {
             let rl = e.lock().unwrap();
             if rl.0 > 0 {
                 if let Some(ref r) = rl.1 {
-                    if let Some(r) = f(r) {
-                        match r {
-                            EntErr::Break => {return Some((i,rl.0));}, //escape hatch
-                            _ => (),
-                        }
-                    }
+                    if f(r) { v.push((i,rl.0)); }
+                }
+                else { break; } //quit at first None
+            }
+        }
+        v
+    }
+
+    pub fn first<F: FnMut(&T) -> bool> (&self, mut f: F) -> Option<Eid> {
+        for (i,e) in self.ents.iter().enumerate() {
+            let rl = e.lock().unwrap();
+            if rl.0 > 0 {
+                if let Some(ref r) = rl.1 {
+                    if f(r) { return Some((i,rl.0)); }
                 }
                 else { break; } //quit at first None
             }
@@ -197,9 +212,17 @@ mod tests {
         let mut e: Ent<u8> = Ent::new(10);
         e.add(2);
         e.add(3);
-        let r = e.find(|i| { if *i == 3 { Some(EntErr::Break) }
-                             else {None} });
-        assert_eq!(r.is_some(),true);
+        let r = e.find(|i| { *i > 0 });
+        assert!(r.len() > 1);
+    }
+
+    #[test]
+    fn test_cubby_first() {
+        let mut e: Ent<u8> = Ent::new(10);
+        e.add(2);
+        e.add(3);
+        let r = e.first(|i| { *i == 3 });
+        assert!(r.is_some());
     }
 
 //
