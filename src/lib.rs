@@ -239,17 +239,19 @@ mod tests {
 
     #[bench]
     fn bench_cubby_thread(b: &mut test::Bencher) {
-        let mut e: Ent<u8> = Ent::new(1000);
+        let mut e: Ent<u8> = Ent::new(2000);
         let e = Arc::new(e);
         let iters = 10;
 
-        for n in (0..100) {let rid = e.add(2).unwrap();}
+        for n in (0..1000) {let rid = e.add(2).unwrap();}
 
         b.iter(|| {
+            let ec = test::black_box(&e);
+
             let (t,r) = channel();
             
             for n in range(0,iters) {
-                let e2 = e.clone();
+                let e2 = ec.clone();
                 let t2 = t.clone();
 
                 Thread::spawn(move || {
@@ -290,17 +292,19 @@ mod tests {
         let e = Arc::new(Mutex::new(e));
         let iters = 10;
 
-        for n in (0..100) {
+        for n in (0..1000) {
             let rid = rand::random::<u64>();
             let mut wl = e.lock().unwrap();
             wl.insert(rid,2);
         }
 
         b.iter(|| {
+            let ec = test::black_box(&e);
+
             let (t,r) = channel();
             
             for n in range(0,iters) {
-                let e2 = e.clone();
+                let e2 = ec.clone();
                 let t2 = t.clone();
                 Thread::spawn(move || {
                     let rid = rand::random::<u64>();
@@ -329,16 +333,18 @@ mod tests {
         let mut e = Arc::new(RwLock::new(Vec::new()));
         let iters = 10;
         
-        for n in (0..100) {
+        for n in (0..1000) {
             let mut wl = e.write().unwrap();
             let rid = wl.push(2);
         }
 
         b.iter(|| {
+            let ec = test::black_box(&e);
+
             let (t,r) = channel();
             
             for n in range(0,iters) {
-                let e2 = e.clone();
+                let e2 = ec.clone();
                 let t2 = t.clone();
 
                 Thread::spawn(move || {
@@ -347,7 +353,7 @@ mod tests {
 
                     
 
-                    {let rl = e2.write().unwrap();
+                    {let rl = e2.read().unwrap();
                      for n in rl.iter() {
                          let rid = n;
                          sleep(Duration::milliseconds(0));
@@ -361,6 +367,123 @@ mod tests {
             for n in range(0,iters) {
                 r.recv();
             }
+        });
+    }
+
+    #[bench]
+    fn bench_imm_thread(b: &mut test::Bencher) {
+        let mut v = Vec::new();
+        let iters = 10;
+        
+        for n in (0..1000) {
+            let rid = v.push(2);
+        }
+
+        let e = Arc::new(v);
+
+        b.iter(|| {
+            let ec = test::black_box(&e);
+
+            let (t,r) = channel();
+            
+            for n in range(0,iters) {
+                let e2 = ec.clone();
+                let t2 = t.clone();
+
+                Thread::spawn(move || {
+                    
+                    {for n in e2.iter() {
+                         let rid = n;
+                         sleep(Duration::milliseconds(0));
+                     }}
+
+                    t2.send(true);
+                });
+            }
+
+
+            for n in range(0,iters) {
+                r.recv();
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_imm_single(b: &mut test::Bencher) {
+        let mut v = Vec::new();
+        let iters = 10;
+        
+        for n in (0..1000) {
+            let rid = v.push(2);
+        }
+
+        let e = Arc::new(v);
+
+        b.iter(|| {
+            let ec = test::black_box(&e);
+            for n in ec.iter() {
+                let rid = n;
+                sleep(Duration::milliseconds(0));
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_rwl_single(b: &mut test::Bencher) {
+        let mut e = Arc::new(RwLock::new(Vec::new()));
+        
+        for n in (0..1000) {
+            let mut wl = e.write().unwrap();
+            let rid = wl.push(2);
+        }
+
+        b.iter(|| {
+            let ec = test::black_box(&e);
+
+            let rl = ec.read().unwrap();
+            for n in rl.iter() {
+                let rid = n;
+                sleep(Duration::milliseconds(0));
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_hmap_single(b: &mut test::Bencher) {
+        let mut e: HashMap<u64,u8> = HashMap::new();
+        let e = Arc::new(Mutex::new(e));
+
+        for n in (0..1000) {
+            let rid = rand::random::<u64>();
+            let mut wl = e.lock().unwrap();
+            wl.insert(rid,2);
+        }
+
+        b.iter(|| {
+            let ec = test::black_box(&e);
+
+            let rl = ec.lock().unwrap();
+            for n in rl.iter() {
+                let i = n;
+                sleep(Duration::milliseconds(0));
+            }
+        });
+    }
+
+   #[bench]
+    fn bench_cubby_single(b: &mut test::Bencher) {
+        let mut e: Ent<u8> = Ent::new(2000);
+        let e = Arc::new(e);
+
+        for n in (0..1000) {let rid = e.add(2).unwrap();}
+
+        b.iter(|| {
+            let ec = test::black_box(&e);
+
+            ec.each(|i| { 
+                let l = i;
+                sleep(Duration::milliseconds(0));
+                None});
         });
     }
 }
