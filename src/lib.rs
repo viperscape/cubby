@@ -164,7 +164,7 @@ mod tests {
     use std::sync::mpsc::{channel};
     use std::thread::Thread;
 
-    use std::sync::{Arc,Mutex};
+    use std::sync::{Arc,Mutex,RwLock};
     use std::rand;
     use std::old_io::timer::sleep;
     use std::time::Duration;
@@ -239,9 +239,11 @@ mod tests {
 
     #[bench]
     fn bench_cubby_thread(b: &mut test::Bencher) {
-        let mut e: Ent<u8> = Ent::new(100);
+        let mut e: Ent<u8> = Ent::new(1000);
         let e = Arc::new(e);
         let iters = 10;
+
+        for n in (0..100) {let rid = e.add(2).unwrap();}
 
         b.iter(|| {
             let (t,r) = channel();
@@ -252,9 +254,12 @@ mod tests {
 
                 Thread::spawn(move || {
                     let rid = e2.add(2).unwrap();
-                    e2.with(rid,|i| 
-                           sleep(Duration::milliseconds(10)));
-                    e2.remove(rid);
+
+                    e2.each(|i| { 
+                        let l = i;
+                        sleep(Duration::milliseconds(0));
+                        None});
+
                     t2.send(true);
                 });
             }
@@ -285,6 +290,12 @@ mod tests {
         let e = Arc::new(Mutex::new(e));
         let iters = 10;
 
+        for n in (0..100) {
+            let rid = rand::random::<u64>();
+            let mut wl = e.lock().unwrap();
+            wl.insert(rid,2);
+        }
+
         b.iter(|| {
             let (t,r) = channel();
             
@@ -298,15 +309,54 @@ mod tests {
 
 
                     {let rl = e2.lock().unwrap();
-                     let i = rl.get(&rid);
-                     sleep(Duration::milliseconds(10));}
+                     for n in rl.iter() {
+                         let i = n;
+                         sleep(Duration::milliseconds(0));
+                     }}
 
-                    {let mut wl = e2.lock().unwrap();
-                     wl.remove(&rid);}
+                     t2.send(true);
+                });
+            }
+
+            for n in range(0,iters) {
+                r.recv();
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_rwl_thread(b: &mut test::Bencher) {
+        let mut e = Arc::new(RwLock::new(Vec::new()));
+        let iters = 10;
+        
+        for n in (0..100) {
+            let mut wl = e.write().unwrap();
+            let rid = wl.push(2);
+        }
+
+        b.iter(|| {
+            let (t,r) = channel();
+            
+            for n in range(0,iters) {
+                let e2 = e.clone();
+                let t2 = t.clone();
+
+                Thread::spawn(move || {
+                    {let mut wl = e2.write().unwrap();
+                     let rid = wl.push(2);}
+
+                    
+
+                    {let rl = e2.write().unwrap();
+                     for n in rl.iter() {
+                         let rid = n;
+                         sleep(Duration::milliseconds(0));
+                     }}
 
                     t2.send(true);
                 });
             }
+
 
             for n in range(0,iters) {
                 r.recv();
