@@ -5,8 +5,10 @@ The use cases of cubby are probably very limited. It was created specifically to
 ##### benchmarks
 
 These benchmarks satisfy the one specific goal I was hoping to achieve: a shared hashmap-like collection which is similar in speeds as a regular hashmap but greatly reduced thread contention. Typically I would choose to wrap something like this in a mutex, but this shows poor scalability when multiple threads needs to operate on the hashmap. cubby solves this by wrapping the elements of what would be the key-value in a mutex but keeping the collection itself external and fully visible. 
+
 Below threaded benchmarks are as similar as I could manage, and represent creating 1 element each thread and working with the whole collection for 0 ms sleep (specific to the threaded benchmarks) with 10 threads staggered. The initial collection size before benchmarking is 1000 elements. 
-cubby really shines when the whole collection is accessed from multiple threads, since in cubby this actually means individual element access-locks versus a master mutex style for the whole collection. You can see that even an immutable iteration on the collection is about the same speed as cubby (I'm very skeptical of this though). Benchmarks stating single and basic single-thread iteration of the collection, read-only.
+
+cubby really shines when the whole collection is accessed from multiple threads, since in cubby this actually means individual element access-locks versus a master mutex style for the whole collection. You can see that even an immutable iteration on the collection is about the same speed as cubby (I'm very skeptical of this though). Benchmarks stating single are basic single-thread iteration of the collection, read-only.
 
 ```
 test tests::bench_cubby        ... bench:       124 ns/iter (+/- 5)
