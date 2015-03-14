@@ -3,3 +3,6 @@
 name = "cubby"
 version = "0.0.1"
 authors = ["Chris Gill <chrisfgill@gmail.com>"]
+
+[dependencies]
+rand = "*"
