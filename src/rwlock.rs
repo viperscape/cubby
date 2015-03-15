@@ -3,7 +3,7 @@ use std::sync::{RwLock};
 use std::mem;
 
 impl<T:Send+Sync> BackendC<T> for RwLock<Ent<T>> {
-    fn with<W, F:Fn(&Ent<T>)->W> (&self,f:F) -> Result<W,EntErr> { 
+    fn with<W, F:FnMut(&Ent<T>)->W> (&self,mut f:F) -> Result<W,EntErr> { 
         let v = (*self).read();
         match v {
             Ok(_) => Ok(f(&*v.unwrap())), //mutexguard is funny in a match, unwrap v instead

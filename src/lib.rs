@@ -76,6 +76,39 @@ impl<C:BackendC<T>,V:BackendV,T:Send+Sync> Cubby<C,V,T> {
                       else { false }
                       ).unwrap()
     }
+
+    pub fn find<F: FnMut(&T) -> bool> (&self, mut f: F) -> Vec<Eid> {
+        let mut v = vec!();
+        let mut b = false;
+        for (i,e) in self.ents.iter().enumerate() {
+            e.with(|rl|
+                   if rl.0 > 0 {
+                       if let Some(ref r) = rl.1 {
+                           if f(r) { v.push((i,rl.0)); }
+                       }
+                       else { b=true; } //quit at first None
+                   });
+            if b {break}
+        }
+        v
+    }
+
+    pub fn first<F: Fn(&T) -> bool> (&self, f: F) -> Option<Eid> {
+        for (i,e) in self.ents.iter().enumerate() {
+            let r = e.with(|r|
+                           if r.0 > 0 {
+                               if let Some(ref v) = r.1 {
+                                   if f(v) { Ok(Some((i,r.0))) }
+                                   else { Ok(None) }
+                               }
+                               else { Err(()) } //quit at first None
+                           }
+                           else { Ok(None) } ).ok();
+            if r.is_some() { if r.unwrap().ok().is_some() { return r.unwrap().unwrap() } }
+            else { break; }
+        }
+        None
+    }
 }
 
 #[derive(Debug)]
@@ -90,7 +123,7 @@ pub type Eid = (usize,u64);
 pub type Ent<T> = (u64,Option<T>);
 
 pub trait BackendC<T>: PhantomFn<T> {
-    fn with<W,F: Fn(&Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; 
+    fn with<W,F: FnMut(&Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; 
     fn with_mut<W,F: FnOnce(&mut Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; //&mut Ent<T>;
 }
 pub trait BackendV {

@@ -3,7 +3,7 @@ use std::sync::{Mutex};
 use std::mem;
 
 impl<'a,T:Send+Sync> BackendC<T> for Mutex<Ent<T>> {
-    fn with<W, F:Fn(&Ent<T>)->W> (&self,f:F) -> Result<W,EntErr> { 
+    fn with<W, F:FnMut(&Ent<T>)->W> (&self,mut f:F) -> Result<W,EntErr> { 
         let v = (*self).lock();
         match v {
             Ok(_) => Ok(f(&*v.unwrap())), //mutexguard is funny in a match, unwrap v instead
