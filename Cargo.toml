@@ -1,8 +1,12 @@
 [package]
 
 name = "cubby"
-version = "0.0.1"
-authors = ["Chris Gill <chrisfgill@gmail.com>"]
+version = "0.0.2"
+authors = ["Chris Gill"]
+description = "compartmentalized sync access and entity id system"
+repository = "https://github.com/viperscape/cubby"
+readme = "README.md"
+license = "MIT"
 
 [dependencies]
 rand = "*"
