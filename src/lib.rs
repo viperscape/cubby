@@ -54,8 +54,9 @@ impl<C:BackendC<T>,V:BackendV,T:Send+Sync> Cubby<C,V,T> {
     }
 
     pub fn add (&self, i: T) -> Result<Eid,EntErr> {
-        let d = self.dead.get_mut(); 
-        if let Some(idx) = d.pop() {
+        let d = try!(self.dead.with_mut(|mut v| v.pop()));
+        
+        if let Some(idx) = d {
             let rid = rand::random::<u64>();
             self.ents[idx]
                 .with_mut(|mut w|
@@ -70,8 +71,10 @@ impl<C:BackendC<T>,V:BackendV,T:Send+Sync> Cubby<C,V,T> {
             .with_mut(|mut w|
                       if w.0 == e.1 {
                           w.0 = 0;
-                          self.dead.get_mut().push(e.0);
-                          true
+                          if self.dead.with_mut(|mut v| v.push(e.0)).is_ok() {
+                              true
+                          }
+                          else{false}
                       }
                       else { false }
                       ).unwrap()
@@ -94,21 +97,63 @@ impl<C:BackendC<T>,V:BackendV,T:Send+Sync> Cubby<C,V,T> {
     }
 
     pub fn first<F: Fn(&T) -> bool> (&self, f: F) -> Option<Eid> {
+        let mut b = false;
+        let mut rv = None;
         for (i,e) in self.ents.iter().enumerate() {
-            let r = e.with(|r|
-                           if r.0 > 0 {
-                               if let Some(ref v) = r.1 {
-                                   if f(v) { Ok(Some((i,r.0))) }
-                                   else { Ok(None) }
-                               }
-                               else { Err(()) } //quit at first None
-                           }
-                           else { Ok(None) } ).ok();
-            if r.is_some() { if r.unwrap().ok().is_some() { return r.unwrap().unwrap() } }
-            else { break; }
+            e.with(|r|
+                   if r.0 > 0 {
+                       if let Some(ref v) = r.1 {
+                           if f(v) { rv = Some((i,r.0));b=true; }
+                       }
+                       else { b=true; } //quit at first None
+                   });
+
+            if b {break;}
         }
-        None
+            rv
     }
+
+    // todo: consider bool, like a 'while' filter
+    // also consider impl collection style iterator
+    pub fn each<F: FnMut(&T) -> Option<EntErr>> (&self, mut f: F) {
+        let mut b = false;
+        for e in self.ents.iter() {
+            e.with(|rl|
+                   if rl.0 > 0 {
+                       if let Some(ref r) = rl.1 {
+                           if let Some(r) = f(r) {
+                               match r {
+                                   EntErr::Break => {b=true;}, //escape hatch
+                                   _ => (),
+                               }
+                           }
+                       }
+                       else { b=true; } //quit at first None
+                   });
+            if b { break; }
+        }
+    }
+
+    pub fn each_mut<F: FnMut(&mut T) -> Option<EntErr>> (&self, mut f: F) {
+        let mut b = false;
+        for e in self.ents.iter() {
+            e.with_mut(|wl|
+                       if wl.0 > 0 {
+                           if let &mut Some(ref mut w) = &mut wl.1 {
+                               if let Some(r) = f(w) {
+                                   match r {
+                                       EntErr::Break => {b=true;}, //escape hatch
+                                       _ => (),
+                                   }
+                               }
+                           }
+                           else {b=true;}
+                       });
+            if b {break;}
+        }
+    }
+
+    
 }
 
 #[derive(Debug)]
@@ -127,9 +172,10 @@ pub trait BackendC<T>: PhantomFn<T> {
     fn with_mut<W,F: FnOnce(&mut Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; //&mut Ent<T>;
 }
 pub trait BackendV {
-    fn get_mut(&self) -> &mut Vec<usize>;
+    fn with_mut<W,F: FnOnce(&mut Vec<usize>) -> W> (&self,F) -> Result<W,EntErr>;
 }
 
 
 pub mod rwlock;
 pub mod mutex;
+mod tests;

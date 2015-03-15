@@ -20,11 +20,13 @@ impl<'a,T:Send+Sync> BackendC<T> for Mutex<Ent<T>> {
     }
 }
 
-//todo: remove me, replace with channels or at least safeness
 impl BackendV for Mutex<Vec<usize>> {
-    fn get_mut (&self) -> &mut Vec<usize> {
+    fn with_mut<W, F:FnOnce(&mut Vec<usize>)->W> (&self, f:F) -> Result<W,EntErr> {
         let v = (*self).lock();
-        unsafe { mem::transmute(&mut *v.unwrap()) }
+        match v {
+            Ok(_) => Ok(f(&mut *v.unwrap())), 
+            Err(_) => Err(EntErr::Invalid),
+        }
     }
 }
 
