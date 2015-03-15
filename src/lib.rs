@@ -1,5 +1,5 @@
 #![feature(collections)]
-use std::marker::{PhantomData};
+use std::marker::{PhantomData,PhantomFn};
 extern crate rand;
 
 pub struct Cubby<C,V,T> {
@@ -27,47 +27,54 @@ impl<C:BackendC<T>,V:BackendV,T:Send+Sync> Cubby<C,V,T> {
                 _pd: PhantomData }
     }
 
-    pub fn get(&self, e:Eid) -> Result<&T,EntErr> {
-        let r = self.ents[e.0].get();
-        if r.0 == e.1 {
-            if let Some(ref r) = r.1 {
-                Ok(r)
-            }
-            else { Err(EntErr::NoData) }
-        }
-        else { Err(EntErr::Invalid) }
+    pub fn with<W, F: Fn(&T) -> W> (&self, e: Eid, f: F) -> Result<W,EntErr> {
+        self.ents[e.0]
+            .with(|r|
+                  if r.0 == e.1 {
+                      if let Some(ref r) = r.1 {
+                          Ok(f(r))
+                      }
+                      else { Err(EntErr::NoData) }
+                  }
+                  else { Err(EntErr::Invalid) }
+                  ).unwrap()
     }
 
-    pub fn get_mut(&self, e:Eid) -> Result<&mut T,EntErr> {
-        let mut w = self.ents[e.0].get_mut();
-        if w.0 == e.1 {
-            if let Some(ref mut w) = w.1 {
-                Ok(w)
-            }
-            else { Err(EntErr::NoData) }
-        }
-        else { Err(EntErr::Invalid) }
+    pub fn with_mut<W, F: FnOnce(&mut T) -> W> (&self, e: Eid, f: F) -> Result<W,EntErr> {
+        self.ents[e.0].
+            with_mut(|mut w|
+                     if w.0 == e.1 {
+                         if let Some(ref mut w) = w.1 {
+                             Ok(f(w))
+                         }
+                         else { Err(EntErr::NoData) }
+                     }
+                     else { Err(EntErr::Invalid) }
+                     ).unwrap()
     }
 
     pub fn add (&self, i: T) -> Result<Eid,EntErr> {
         let d = self.dead.get_mut(); 
         if let Some(idx) = d.pop() {
             let rid = rand::random::<u64>();
-            let mut w = self.ents[idx].get_mut();
-            *w = (rid,Some(i));
+            self.ents[idx]
+                .with_mut(|mut w|
+                          *w = (rid,Some(i)));
             Ok((idx,rid))
         }
         else { Err(EntErr::Maxed) }
     }
 
     pub fn remove (&self, e:Eid) -> bool {
-        let mut w = self.ents[e.0].get_mut();
-        if w.0 == e.1 {
-            w.0 = 0;
-            self.dead.get_mut().push(e.0);
-            true
-        }
-        else { false }
+        self.ents[e.0]
+            .with_mut(|mut w|
+                      if w.0 == e.1 {
+                          w.0 = 0;
+                          self.dead.get_mut().push(e.0);
+                          true
+                      }
+                      else { false }
+                      ).unwrap()
     }
 }
 
@@ -82,13 +89,14 @@ pub enum EntErr {
 pub type Eid = (usize,u64);
 pub type Ent<T> = (u64,Option<T>);
 
-pub trait BackendC<T> {
-    fn get(&self) -> &Ent<T>;
-    fn get_mut(&self) -> &mut Ent<T>;
+pub trait BackendC<T>: PhantomFn<T> {
+    fn with<W,F: Fn(&Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; 
+    fn with_mut<W,F: FnOnce(&mut Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; //&mut Ent<T>;
 }
 pub trait BackendV {
     fn get_mut(&self) -> &mut Vec<usize>;
 }
+
 
 pub mod rwlock;
 pub mod mutex;

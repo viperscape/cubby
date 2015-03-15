@@ -1,16 +1,22 @@
-use super::{Ent,BackendC,BackendV,Cubby};
+use super::{Ent,EntErr,BackendC,BackendV,Cubby};
 use std::sync::{RwLock};
 use std::mem;
 
 impl<T:Send+Sync> BackendC<T> for RwLock<Ent<T>> {
-    fn get (&self) -> &Ent<T> {
+    fn with<W, F:Fn(&Ent<T>)->W> (&self,f:F) -> Result<W,EntErr> { 
         let v = (*self).read();
-        unsafe { mem::transmute(&*v.unwrap()) }
+        match v {
+            Ok(_) => Ok(f(&*v.unwrap())), //mutexguard is funny in a match, unwrap v instead
+            Err(_) => Err(EntErr::Invalid),
+        }
     }
 
-    fn get_mut (&self) -> &mut Ent<T> {
+    fn with_mut<W, F:FnOnce(&mut Ent<T>)->W> (&self, f:F) -> Result<W,EntErr> {
         let v = (*self).write();
-        unsafe { mem::transmute(&mut *v.unwrap()) }
+        match v {
+            Ok(_) => Ok(f(&mut *v.unwrap())), 
+            Err(_) => Err(EntErr::Invalid),
+        }
     }
 }
 
