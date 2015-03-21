@@ -30,8 +30,10 @@ impl BackendV for RwLock<Vec<usize>> {
     }
 }
 
-pub fn build<T:Send+Sync> (s:usize) -> Cubby<RwLock<Ent<T>>,RwLock<Vec<usize>>,T> {
+pub fn build<T:Send+Sync> (s:usize) -> CubbyRwLock<T> {
     Cubby::new(|n| RwLock::new(n),
                |v| RwLock::new(v),
                s)
 }
+
+pub type CubbyRwLock<T> = Cubby<RwLock<Ent<T>>,RwLock<Vec<usize>>,T>;

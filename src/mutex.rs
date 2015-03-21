@@ -1,6 +1,5 @@
 use super::{Ent,BackendC,BackendV,Cubby,EntErr};
 use std::sync::{Mutex};
-use std::mem;
 
 impl<'a,T:Send+Sync> BackendC<T> for Mutex<Ent<T>> {
     fn with<W, F:FnMut(&Ent<T>)->W> (&self,mut f:F) -> Result<W,EntErr> { 
@@ -30,8 +29,10 @@ impl BackendV for Mutex<Vec<usize>> {
     }
 }
 
-pub fn build<T:Send+Sync> (s:usize) -> Cubby<Mutex<Ent<T>>,Mutex<Vec<usize>>,T> {
+pub fn build<T:Send+Sync> (s:usize) -> CubbyMutex<T> {
     Cubby::new(|n| Mutex::new(n),
                |v| Mutex::new(v),
                s)
 }
+
+pub type CubbyMutex<T> = Cubby<Mutex<Ent<T>>,Mutex<Vec<usize>>,T>;
