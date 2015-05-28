@@ -1,6 +1,7 @@
-#![feature(collections)]
-use std::marker::{PhantomData,PhantomFn};
+#![feature(test)]
+
 extern crate rand;
+use std::marker::PhantomData;
 
 pub struct Cubby<C,V,T> {
     ents: Box<[C]>,
@@ -167,7 +168,7 @@ pub enum EntErr {
 pub type Eid = (usize,u64);
 pub type Ent<T> = (u64,Option<T>);
 
-pub trait BackendC<T>: PhantomFn<T> {
+pub trait BackendC<T> {
     fn with<W,F: FnMut(&Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; 
     fn with_mut<W,F: FnOnce(&mut Ent<T>) -> W> (&self,F) -> Result<W,EntErr>; //&mut Ent<T>;
 }

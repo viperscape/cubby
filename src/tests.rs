@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     extern crate test;
@@ -10,8 +9,7 @@ mod tests {
     use std::thread::Thread;
 
     use std::sync::{Arc,Mutex,RwLock};
-    use std::old_io::timer::sleep;
-    use std::time::Duration;
+    use std::thread::sleep_ms as sleep;
 
 
     #[test]
@@ -22,7 +20,7 @@ mod tests {
     }
 
     #[test]
-    #[should_fail]
+    #[should_panic]
     fn test_cubby_remove() {
         let mut c = rwlock::build(10);
         let e = c.add(2).unwrap();
