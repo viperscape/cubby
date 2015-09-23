@@ -1,7 +1,7 @@
 [package]
 
 name = "cubby"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Chris Gill"]
 description = "compartmentalized sync access and entity id system"
 repository = "https://github.com/viperscape/cubby"
