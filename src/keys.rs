@@ -21,7 +21,7 @@ impl Id for NodeKey {
 pub struct Node<T> {
     id: Option<NodeId>, // none represents a dead-node
     parent: Option<NodeKey>,
-    data: T,
+    pub data: T,
 }
 
 impl<T> Node<T> {
