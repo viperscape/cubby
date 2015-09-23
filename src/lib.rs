@@ -25,6 +25,8 @@ fn keys_smoke() {
     let key = mgr.add(Node::new(true));
     assert!(mgr.get(key).is_some());
     
+    assert!(mgr.get(key).unwrap().data); //value is true
+    
     mgr.remove(key);
     assert!(!mgr.get(key).is_some());
 }

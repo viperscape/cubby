@@ -28,7 +28,35 @@ see [tests](https://github.com/viperscape/cubby/blob/master/src/tests.rs) for mo
 #### benchmarks ####
 
 ```
-test tests::tests::bench_cubby_mutex  ... bench:       234 ns/iter (+/- 9)
-test tests::tests::bench_cubby_rwlock ... bench:       354 ns/iter (+/- 10)
-test tests::tests::bench_hmap_mutex   ... bench:       375 ns/iter (+/- 13)
+test tests::tests::bench_cubby_mutex  ... bench:       226 ns/iter (+/- 9)
+test tests::tests::bench_cubby_rwlock ... bench:       245 ns/iter (+/- 10)
+test tests::tests::bench_hmap_mutex   ... bench:       390 ns/iter (+/- 13)
+```
+
+std::collections hashmap vs cubby::keys (entity manager)
+```
+running 4 tests
+test hmap_add_bm                      ... bench:         237 ns/iter (+/- 27)
+test hmap_iter_bm                     ... bench:      15,995 ns/iter (+/- 746)
+test hmap_rt_bm                       ... bench:         165 ns/iter (+/- 4)
+test hmap_work_bm                     ... bench:     377,134 ns/iter (+/- 11,684)
+
+running 4 tests
+test keys_add_bm                      ... bench:          43 ns/iter (+/- 5)
+test keys_iter_bm                     ... bench:          24 ns/iter (+/- 0)
+test keys_rt_bm                       ... bench:          37 ns/iter (+/- 3)
+test keys_work_bm                     ... bench:      71,592 ns/iter (+/- 5,572)
+```
+
+Keys example
+```
+    let mut mgr = NodeManager::new(MAX_NODES);
+    
+    let key = mgr.add(Node::new(true));
+    assert!(mgr.get(key).is_some());
+    
+    assert!(mgr.get(key).unwrap().data); //value is true
+    
+    mgr.remove(key);
+    assert!(!mgr.get(key).is_some());
 ```
