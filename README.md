@@ -49,14 +49,14 @@ test keys_work_bm                     ... bench:      71,592 ns/iter (+/- 5,572)
 ```
 
 Keys example
-```
-    let mut mgr = NodeManager::new(MAX_NODES);
+```rust
+let mut mgr = NodeManager::new(MAX_NODES);
     
-    let key = mgr.add(Node::new(true));
-    assert!(mgr.get(key).is_some());
+let key = mgr.add(Node::new(true));
+assert!(mgr.get(key).is_some());
     
-    assert!(mgr.get(key).unwrap().data); //value is true
+assert!(mgr.get(key).unwrap().data); //value is true
     
-    mgr.remove(key);
-    assert!(!mgr.get(key).is_some());
+mgr.remove(key);
+assert!(!mgr.get(key).is_some());
 ```
