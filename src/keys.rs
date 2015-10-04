@@ -139,7 +139,9 @@ impl<T> NodeManager<T> {
         }
     }*/
 
-    pub fn box_iter<'a> (&'a self) -> Box<Iterator<Item=&'a Node<T>> + 'a> {
-        Box::new(self.nodes.iter().filter(|n| n.id().is_some()))
+    pub fn box_iter<'a> (&'a self) -> Box<Iterator<Item=(usize,&'a Node<T>)> + 'a> {
+        Box::new(self.nodes.iter()
+                 .enumerate()
+                 .filter(|n| n.1.id().is_some()))
     }
 }
