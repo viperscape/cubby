@@ -144,4 +144,9 @@ impl<T> NodeManager<T> {
                  .enumerate()
                  .filter(|n| n.1.id().is_some()))
     }
+    pub fn box_iter_mut<'a> (&'a mut self) -> Box<Iterator<Item=(usize,&'a mut Node<T>)> + 'a> {
+        Box::new(self.nodes.iter_mut()
+                 .enumerate()
+                 .filter(|n| n.1.id().is_some()))
+    }
 }
